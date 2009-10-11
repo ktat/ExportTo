@@ -9,3 +9,6 @@ t/boilerplate.t
 t/pod-coverage.t
 t/ExportTo.t
 t/pod.t
+t/ExportTo-nest.t
+t/lib/HOGE.pm
+t/lib/HOGEHOGE.pm

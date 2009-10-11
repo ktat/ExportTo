@@ -3,41 +3,52 @@ package ExportTo;
 use Carp();
 use strict;
 
-no strict "refs";
-
 sub import{
-  my %hash = $_[0] eq __PACKAGE__ ? @_[1 .. $#_] : @_;
   my $pkg = (caller)[0];
-  *{$pkg . '::export_to'} = \&export_to;
+  {
+    no strict 'refs';
+    *{$pkg . '::export_to'} = \&export_to
+      if not defined &{$pkg . '::export_to'};
+  }
+  goto \&export_to;
+}
+
+sub export_to {
+  shift if $_[0] eq __PACKAGE__;
+  my %hash = @_;
+  my $pkg = (caller)[0];
   while(my($class, $subs) = each %hash){
     if(ref $subs eq 'HASH'){
       # {subname => \&coderef/subname}
-      while(my($sub, $cr_or_name) = each %{$subs}){
+      while (my($sub, $cr_or_name) = each %{$subs}) {
         my($cr, $subname) = ref $cr_or_name eq 'CODE' ? ($cr_or_name, undef) : (undef, $cr_or_name);
         my $esub = $class . '::' . $sub;
-        $sub  =~ s/\+//g;
-        ($esub =~ s/\+//g or ($subname and $subname =~s/\+//g)) ? undef &{$esub} : $class->can($sub) && next;
-        if($cr or $cr = $pkg->can($subname)){
+        $sub  =~ s/\+//og;
+        ($esub =~ s/\+//og or ($subname and $subname =~s/\+//og)) ? undef &{$esub} : defined(&{$esub}) && next;
+        # if($cr or $cr = \&{$pkg . '::' . $subname}) {
+        if($cr or $cr = $pkg->can($subname)) {
+          no strict 'refs';
           *{$esub} = $cr
-        }else{
+        } else {
           Carp::croak($pkg, ' cannot do ' , $subname);
         }
       }
     }else{
       foreach my $sub (@$subs){
         my $esub;
-        unless($sub =~ /::/){
+        unless($sub =~ /::/o){
           $esub = $class . '::' . $sub;
-        }else{
-          $sub =~ s{^(.+)::}{};
+        } else {
+          $sub =~ s{^(.+)::}{}o and $pkg = $1;
           $esub = $class . '::' . $sub;
-          $pkg = $1;
         }
-        $sub  =~ s/\+//g;
-        $esub =~ s/\+//g ? undef &{$esub} : $class->can($sub) && next;
-        if(my $cr = $pkg->can($sub)){
+        $sub  =~ s/\+//og;
+        $esub =~ s/\+//og ? undef &{$esub} : defined(&{$esub}) && next;
+        # if(my $cr = \&{$pkg . '::' . $subname}) {
+        if(my $cr = $pkg->can($sub)) {
+          no strict 'refs';
           *{$esub} = $cr
-        }else{
+        } else {
           Carp::croak($pkg, ' cannot do ' , $sub);
         }
       }
@@ -45,19 +56,17 @@ sub import{
   }
 }
 
-*{ExportTo::export_to} = \&import;
-
 =head1 NAME
 
-ExportTo - export function/method to namespace
+ExportTo - export any function/method to any namespace
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -87,7 +96,7 @@ our $VERSION = '0.02';
  use ExportTo (NameSpace1 => [qw/+function_1 function_2/]);
  
  # if adding + to function/method name,
- # This override function/method which namespace already has with exported funtion/method.
+ # This override function/method which namespace already has with exported function/method.
  
  use ExportTo ('+NameSpace' => [qw/function_1 function_2/]);
  
@@ -130,6 +139,40 @@ using 'export_to', you can write anywhere.
 
 =back
 
+=head1 Export from another package to another package (with renaming).
+
+This is used in L<Util::Any>.
+For example, CGI::Util's C<escape> function to other package.
+
+ package main;
+ use CGI ();
+ 
+ # export CGI::Util::escape to OtherA
+ use ExportTo (OtherA => ['CGI::Util::escape']);
+ 
+ # export CGI::Util::escape to OtherB as cgi_escape
+ use ExportTo (OtherB => {cgi_escape => \&CGI::Util::escape});
+ 
+ print OtherA::escape("/"); # %2F
+ print OtherB::cgi_escape("/"); # %2F
+
+=head1 Import from another package's subroutine to current package (with renaming)
+
+It is as same as above.
+
+ use CGI ();
+ 
+ # export CGI::Util::escape to current package
+ use ExportTo (__PACKAGE__, ['CGI::Util::escape']);
+ 
+ # export CGI::Util::escape to current package as cgi_escape
+ use ExportTo (__PACKAGE__, {cgi_escape => \&CGI::Util::escape});
+ 
+ print main::escape("/"); # %2F
+ print main::cgi_escape("/"); # %2F
+
+But for this purpose, L<Sub::Import> has better interface.
+
 =head1 AUTHOR
 
 Ktat, C<< <ktat at cpan.org> >>
@@ -170,9 +213,14 @@ L<http://search.cpan.org/dist/ExportTo>
 
 =back
 
+=head1 SEE ALSO
+
+L<Sub::Import>. If you import other module's function to current package,
+it is better than ExportTo.
+
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2006 Ktat, all rights reserved.
+Copyright 2006-2009 Ktat, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

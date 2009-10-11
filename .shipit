@@ -1,0 +1,8 @@
+steps = FindVersion, ChangeVersion, CheckChangeLog, DistTest, Commit, Tag, MakeDist, UploadCPAN, Twitter
+
+git.tagpattern = release-%v
+git.push_to = origin
+
+twitter.config = ~/.twitterrc
+twitter.distname = ExportTo
+twitter.message = shipped %d %v - soon at %u
