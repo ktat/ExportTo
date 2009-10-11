@@ -1,0 +1,11 @@
+Revision history for ExportTo
+
+0.02  Mon Sep 4 01:03:00 2006
+	- add 'use strict'
+	- add new feature
+	- fix documentation
+        - use Module::Starter 
+
+0.01  Sat Mar 11 19:09:41 2006
+	- original version;
+
